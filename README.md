@@ -36,3 +36,5 @@ node build.mjs
 ```
 
 Quellen, Prüfungen und fertige Frontend-Dateien sind im Repository enthalten. Die Lizenzen der eingebundenen Schriften und Icons liegen unter `cyd_atelier/frontend/dist/assets`.
+
+<img width="2328" height="1410" alt="cydatelier" src="https://github.com/user-attachments/assets/f32b8483-16e6-413d-aee6-0c758e4fd578" />
