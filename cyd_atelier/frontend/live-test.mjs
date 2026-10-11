@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {LiveEntities,storedProject} from './src/ha-live.mjs';
+import {newProject,formatValue,inferType,makeWidget} from './src/core.mjs';
+const live=new LiveEntities();
+const entity=(entity_id,state,attributes={})=>({entity_id,state,attributes});
+const p=newProject();p.widgets=[makeWidget({entity:'sensor.kaffee_status',unit:''})];
+live.receive('snapshot',{connected:true,entities:[entity('sensor.kaffee_status','Bereit',{friendly_name:'Kaffeemaschine',icon:'mdi:coffee'}),entity('sensor.temperatur','22.3',{device_class:'temperature',unit_of_measurement:'°C'})]});
+live.apply(p);assert.equal(formatValue(p,p.widgets[0]),'Bereit');assert.equal(inferType(p.entities[1]).type,'Zahl / Messwert');assert.equal(p.entities[0].demo,undefined);
+live.receive('state',{entity_id:'sensor.kaffee_status',entity:entity('sensor.kaffee_status','Espresso')});live.apply(p);assert.equal(formatValue(p,p.widgets[0]),'Espresso');
+live.receive('state',{entity_id:'binary_sensor.neu',entity:entity('binary_sensor.neu','on')});live.apply(p);assert.equal(inferType(p.entities.at(-1)).type,'Binär / Status');
+live.receive('state',{entity_id:'sensor.kaffee_status',entity:null});live.apply(p);assert.equal(formatValue(p,p.widgets[0]),'—');assert.equal(p.entities.at(-1).state,'unavailable');
+live.receive('status',{connected:false,message:'Getrennt'});assert.equal(live.connected,false);assert.equal(live.entities.size,2);
+live.receive('snapshot',{connected:true,entities:[entity('sensor.kaffee_status','Wieder da')]});live.apply(p);assert.equal(formatValue(p,p.widgets[0]),'Wieder da');assert.equal(p.entities.length,1);
+p.entities.push(entity('sensor.unrelated','99'));assert.equal(storedProject(p).entities.length,1);
+p.widgets.push(makeWidget({kind:'list',items:[{entity:'sensor.unrelated'}]}));assert.equal(storedProject(p).entities.length,2);
+console.log('PASS live entities: snapshot, types, deltas, creation/removal, unavailable values, reconnect, compact project storage.');

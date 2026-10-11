@@ -1,0 +1,10 @@
+{
+	"dependencies": {
+		"@fontsource/roboto": "5.2.8",
+		"@mdi/font": "7.4.47",
+		"@mdi/js": "7.4.47",
+		"esbuild": "0.25.11",
+		"linkedom": "0.18.12",
+		"yaml": "2.8.1"
+	}
+}

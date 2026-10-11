@@ -1,0 +1,65 @@
+import assert from 'node:assert/strict';
+import {alignWidgets, equalSize, distributeWidgets, smartSnap, styleOf, applyStyle, groupRect} from './src/layout.mjs';
+
+const bounds = {width: 320, height: 240};
+const widget = (id, x, y, w, h, extra = {}) => ({id, x, y, w, h, ...extra});
+const sample = [widget('a', 20, 25, 50, 40), widget('b', 110, 95, 80, 60), widget('locked', 280, 200, 30, 20, {locked:true})];
+const original = structuredClone(sample);
+assert.deepEqual(groupRect(sample, ['a','b','locked']), {x:20, y:25, w:170, h:130});
+assert.equal(alignWidgets(sample, ['a'], 'right', bounds)[0].x, 270, 'one widget aligns to the display edge');
+let arranged = alignWidgets(sample, ['a','b','locked'], 'bottom', bounds);
+assert.equal(arranged[0].y + arranged[0].h, arranged[1].y + arranged[1].h, 'selected lower edges coincide');
+assert.deepEqual(arranged[2], sample[2], 'locked geometry remains untouched');
+arranged = alignWidgets(sample, ['a','b'], 'center', bounds);
+assert.equal(arranged[0].x + arranged[0].w/2, arranged[1].x + arranged[1].w/2);
+assert.deepEqual(sample, original, 'alignment does not mutate the current project');
+
+const parts = [widget('small', 290, 210, 30, 20, {parts:{value:{x:3,y:2,w:21,h:14}}}), widget('ref', 0, 0, 90, 60)];
+arranged = equalSize(parts, ['ref','small'], 'both', bounds);
+assert.deepEqual([arranged[0].w, arranged[0].h], [90,60], 'the first selected widget supplies the size');
+assert.equal(arranged[0].x + arranged[0].w, 320, 'resizing near the edge keeps the widget in bounds');
+assert.equal(arranged[0].y + arranged[0].h, 240);
+assert.deepEqual(arranged[0].parts.value, {x:9,y:6,w:63,h:42}, 'custom content keeps its relative layout');
+assert.deepEqual(parts[0].parts.value, {x:3,y:2,w:21,h:14}, 'resizing does not change source parts');
+const oversized = equalSize([widget('big', 0, 0, 500, 500), widget('normal', 20, 20, 24, 16)], ['big','normal'], 'both', bounds);
+for (const item of oversized) assert.ok(item.x >= 0 && item.y >= 0 && item.x + item.w <= 320 && item.y + item.h <= 240);
+
+const spaced = [widget('a',10,20,20,20), widget('b',50,60,40,30), widget('c',180,180,30,40)];
+arranged = distributeWidgets(spaced, ['a','b','c'], 'horizontal');
+assert.equal(arranged[0].x, spaced[0].x);
+assert.equal(arranged[2].x+arranged[2].w, spaced[2].x+spaced[2].w);
+assert.equal(arranged[1].x-(arranged[0].x+arranged[0].w), arranged[2].x-(arranged[1].x+arranged[1].w));
+arranged = distributeWidgets(spaced, ['a','b','c'], 'vertical');
+assert.equal(arranged[1].y-(arranged[0].y+arranged[0].h), arranged[2].y-(arranged[1].y+arranged[1].h));
+const crowded = [widget('a',0,0,60,20),widget('b',20,0,60,20),widget('c',40,0,60,20)];
+assert.deepEqual(distributeWidgets(crowded,['a','b','c'],'horizontal'), crowded, 'insufficient space preserves the layout');
+
+let snapped = smartSnap([widget('neighbor',100,70,60,40)], [], {x:97,y:67,w:20,h:20}, bounds);
+assert.deepEqual([snapped.x,snapped.y], [100,70], 'nearby edges snap together');
+assert.ok(snapped.guides.some(guide => guide.axis === 'x' && guide.position === 100));
+snapped = smartSnap([], [], {x:149,y:109,w:20,h:20}, bounds);
+assert.deepEqual([snapped.x,snapped.y], [150,110], 'the display center attracts widgets');
+snapped = smartSnap([widget('self',100,100,20,20)], ['self'], {x:104,y:104,w:20,h:20}, bounds, 2);
+assert.deepEqual([snapped.x,snapped.y], [104,104], 'selected widgets are not their own snap targets');
+assert.deepEqual(snapped.guides, []);
+snapped = smartSnap([], [], {x:400,y:-20,w:30,h:40}, bounds);
+assert.ok(snapped.x+30 <= 320 && snapped.y >= 0);
+
+const source = widget('source',1,2,30,40,{kind:'entity',entity:'sensor.temperature',label:'Temperature',nameSize:22,color:'#aabbcc',parts:{name:{x:1,y:1,w:10,h:10}},rules:[{operator:'eq',value:'on',color:'#00ff00'}],minValue:10,maxValue:90});
+const destination = widget('destination',90,100,80,70,{kind:'list',entity:'sensor.humidity',label:'Humidity',locked:false});
+const style = styleOf(source), styled = applyStyle(destination, style);
+assert.deepEqual([styled.id,styled.kind,styled.entity,styled.label,styled.x,styled.y,styled.w,styled.h],['destination','list','sensor.humidity','Humidity',90,100,80,70]);
+assert.equal(styled.color,'#aabbcc');
+assert.equal(styled.nameSize,22);
+assert.equal(styled.parts,undefined, 'local content geometry is not a style');
+styled.rules[0].color='#ffffff';
+assert.equal(style.rules[0].color,'#00ff00', 'rules copied into a widget are independent');
+style.rules[0].value='off';
+assert.equal(source.rules[0].value,'on', 'the style clipboard is independent');
+assert.equal(styled.minValue,undefined, 'data ranges are not copied to unrelated widgets');
+const lockedStyled=applyStyle({...destination,locked:true},style);
+assert.equal(lockedStyled.color,'#aabbcc','position locks still allow style changes');
+assert.equal(lockedStyled.locked,true);
+assert.deepEqual([lockedStyled.x,lockedStyled.y,lockedStyled.w,lockedStyled.h],[destination.x,destination.y,destination.w,destination.h],'style changes preserve locked geometry');
+assert.deepEqual(applyStyle(destination,{x:0,entity:'sensor.other',color:'#123456'}).entity,destination.entity, 'unlisted properties cannot override content');
+console.log('Layout: alignment, locking, bounds, resizing, spacing, snapping and style transfer passed.');

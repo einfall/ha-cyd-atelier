@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import {build} from 'esbuild';
+fs.mkdirSync('dist/assets',{recursive:true});
+const css=fs.readFileSync('node_modules/@mdi/font/css/materialdesignicons.css','utf8');
+const icons=[...css.matchAll(/\.mdi-([\w-]+)::before\s*\{\s*content: "\\([\dA-F]+)";/g)].map(m=>({name:m[1],code:parseInt(m[2],16)}));
+fs.writeFileSync('dist/assets/icons.json',JSON.stringify(icons));
+fs.copyFileSync('node_modules/@mdi/font/fonts/materialdesignicons-webfont.woff2','dist/assets/mdi.woff2');
+fs.copyFileSync('node_modules/@fontsource/roboto/files/roboto-latin-400-normal.woff2','dist/assets/roboto.woff2');
+fs.copyFileSync('node_modules/@mdi/font/LICENSE','dist/assets/MDI-LICENSE.txt');
+fs.copyFileSync('node_modules/@fontsource/roboto/LICENSE','dist/assets/Roboto-LICENSE.txt');
+await build({entryPoints:['src/app.mjs'],bundle:true,outfile:'dist/app.js',format:'esm',target:['es2022'],minify:true});
+console.log(`Built CYD Atelier with ${icons.length} MDI icons.`);

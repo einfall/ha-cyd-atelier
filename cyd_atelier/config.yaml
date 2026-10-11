@@ -1,0 +1,17 @@
+name: CYD Atelier
+version: "1.1.1"
+slug: cyd_atelier
+description: CYD-Display-Editor mit automatischer Entitätenerkennung und Live-Vorschau
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+init: false
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:monitor-dashboard
+panel_title: CYD Atelier
+homeassistant_api: true
+options: {}
+schema: {}
